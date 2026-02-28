@@ -1,0 +1,738 @@
+<!-- ئەڤە نیشانا جۆرێ فایلی یە كو HTML5 یە -->
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>قوتابخانا ئالا | Ala School</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@100;300;400;700;900&family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        * { font-family: 'Noto Sans Arabic', 'Tajawal', sans-serif; scroll-behavior: smooth; }
+        @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-15px); } 100% { transform: translateY(0px); } }
+        @keyframes marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
+        .animate-float { animation: float 6s ease-in-out infinite; }
+        .animate-marquee { display: inline-block; white-space: nowrap; animation: marquee 35s linear infinite; }
+        .reveal { opacity: 0; transform: translateY(20px); transition: all 0.6s ease-out; }
+        .reveal.active { opacity: 1; transform: translateY(0); }
+        .glass-nav { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(12px); box-shadow: 0 4px 30px rgba(0,0,0,0.05); }
+        .dept-card-active { border-color: #1e40af !important; background: #eff6ff !important; transform: scale(1.05); box-shadow: 0 10px 25px rgba(30,58,138,0.1); }
+        
+        /* التصميم الجديد لنجوم ئالا - إطارات مستطيلة فخمة مع اسم الطالب */
+        .star-box { 
+            width: 100%; 
+            max-width: 260px;
+            aspect-ratio: 3/4;
+            margin: 0 auto;
+            border-radius: 2.5rem; 
+            overflow: hidden; 
+            position: relative; 
+            border: 6px solid #eff6ff; 
+            background: #ffffff; 
+            box-shadow: 0 10px 25px rgba(30, 58, 138, 0.15); 
+            transition: all 0.4s ease;
+        }
+        .star-box:hover {
+            transform: translateY(-10px) scale(1.02);
+            box-shadow: 0 20px 35px rgba(30, 58, 138, 0.25);
+            border-color: #bfdbfe;
+        }
+        .star-box img { 
+            width: 100%; 
+            height: 100%; 
+            object-fit: cover; 
+            object-position: center; 
+            transition: transform 0.5s ease; 
+        }
+        .star-box:hover img {
+            transform: scale(1.1);
+        }
+        
+        .btn-loading { opacity: 0.7; pointer-events: none; }
+    </style>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+        import { getFirestore, doc, setDoc, updateDoc, collection, onSnapshot, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBL43bVVCvIT8NfaA-KqjybZ5PsfPBhNPs",
+            authDomain: "ala-school-duhok.firebaseapp.com",
+            databaseURL: "https://ala-school-duhok-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "ala-school-duhok",
+            storageBucket: "ala-school-duhok.firebasestorage.app",
+            messagingSenderId: "856763260204",
+            appId: "1:856763260204:web:928f92bde0ce7db19d6089",
+            measurementId: "G-FR4Q2TJBNX"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        const appId = "ala-school-duhok"; 
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                window.firebaseUser = user;
+                onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'site_assets'), (snap) => {
+                    const data = {};
+                    snap.forEach(d => data[d.id] = d.data());
+                    window.cloudData = data;
+                    if (window.applyCloudContent) window.applyCloudContent();
+                });
+                onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'news'), (snap) => {
+                    const posts = [];
+                    snap.forEach(d => posts.push({ id: d.id, ...d.data() }));
+                    window.cloudNews = posts.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+                    if (window.loadPosts) window.loadPosts();
+                });
+            }
+        });
+
+        signInAnonymously(auth);
+
+        window.saveToFirebase = async (col, data, id = null) => {
+            if(id) await setDoc(doc(db, 'artifacts', appId, 'public', 'data', col, id), data);
+            else await addDoc(collection(db, 'artifacts', appId, 'public', 'data', col), data);
+        };
+        
+        window.deleteFromFirebase = async (id) => {
+            await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'news', id));
+        };
+
+        window.updateLikeInFirebase = async (id, newLikes) => {
+            const postRef = doc(db, 'artifacts', appId, 'public', 'data', 'news', id);
+            await updateDoc(postRef, { likes: newLikes });
+        };
+    </script>
+</head>
+<body class="bg-slate-50 text-slate-800 overflow-x-hidden">
+
+    <!-- بارێ سەرێ یێ مالپەری (Navigation Bar) -->
+    <nav class="fixed top-0 left-0 right-0 z-50 glass-nav border-b border-blue-50">
+        <div class="max-w-7xl mx-auto px-4 py-2 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <img id="logo-nav" src="" class="w-12 h-12 rounded-full border-2 border-blue-100 shadow-sm object-cover cursor-pointer" onclick="window.scrollTo(0,0)" onerror="this.src='https://ui-avatars.com/api/?name=ALA&background=1e3a8a&color=fff'">
+                <div class="hidden sm:block">
+                    <span id="nav-school-name" class="font-black text-blue-900 text-lg block leading-none"></span>
+                    <span id="nav-school-type" class="text-[11px] text-blue-500 font-bold uppercase block mt-1"></span>
+                </div>
+            </div>
+            <div class="flex bg-blue-50 p-1 rounded-full border border-blue-100" id="lang-switcher"></div>
+        </div>
+        <!-- شریتێ دەنگوباسێن ب لەز -->
+        <div class="bg-blue-900 text-white h-9 flex items-center shadow-inner overflow-hidden">
+            <div class="bg-blue-700 h-full px-4 text-xs font-black shrink-0 flex items-center gap-2 z-10 shadow-lg">
+                <span id="ticker-label"></span>
+            </div>
+            <div class="relative flex-1 overflow-hidden h-full flex items-center">
+                <div class="animate-marquee whitespace-nowrap px-4 text-xs md:text-sm font-bold flex items-center gap-10" id="news-ticker-content"></div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- پشكا سەرەكی و پێشوازیێ (Hero Section) -->
+    <header class="relative min-h-screen flex flex-col items-center justify-center text-center px-4 pt-32 pb-20 bg-gradient-to-b from-blue-50/50 to-white">
+        <div class="z-10 space-y-8 max-w-5xl reveal active">
+            <div class="animate-float inline-block">
+                <img id="logo-hero" src="" class="w-48 h-48 md:w-64 md:h-64 relative rounded-full object-cover border-8 border-white shadow-2xl" onerror="this.src='https://ui-avatars.com/api/?name=ALA&background=1e3a8a&color=fff'">
+            </div>
+            <div class="space-y-4">
+                <h1 id="hero-title" class="text-5xl md:text-7xl font-black text-slate-900 leading-tight"></h1>
+                <p id="hero-type" class="text-xl font-bold text-blue-600 uppercase tracking-widest"></p>
+            </div>
+            <p id="hero-subtitle" class="text-lg md:text-2xl text-slate-500 max-w-2xl mx-auto font-medium"></p>
+            <button onclick="scrollToId('about')" class="bg-blue-900 text-white px-10 py-4 font-bold rounded-full hover:bg-blue-800 transition-all shadow-xl">
+                <span id="btn-discover"></span>
+            </button>
+        </div>
+    </header>
+
+    <!-- پشكا دەربارەی مە (About Us) -->
+    <section id="about" class="py-24 px-6 bg-white">
+        <div class="max-w-5xl mx-auto text-center reveal">
+            <h2 id="about-title" class="text-4xl md:text-5xl font-black text-slate-900 mb-8"></h2>
+            <div class="p-10 bg-slate-50 rounded-[3rem] border border-slate-100 shadow-inner">
+                <p id="about-text" class="text-xl md:text-2xl text-slate-700 leading-loose font-medium"></p>
+            </div>
+        </div>
+    </section>
+
+    <!-- پشكا پەیاما مە (Goals Section) -->
+    <section class="py-24 px-6 bg-blue-900 text-white overflow-hidden">
+        <div class="max-w-7xl mx-auto grid md:grid-cols-2 gap-16 items-center">
+            <div class="space-y-10 reveal">
+                <h2 id="goal-title" class="text-4xl md:text-6xl font-black"></h2>
+                <p id="goal-text" class="text-xl md:text-2xl text-blue-100 leading-relaxed"></p>
+                <div class="space-y-4">
+                    <div class="flex items-center gap-5 bg-white/10 p-5 rounded-2xl border border-white/5 backdrop-blur-md">
+                        <div class="w-12 h-12 bg-blue-300 rounded-xl flex items-center justify-center text-blue-900 font-black text-xl"><i data-lucide="brain-circuit"></i></div>
+                        <span class="text-xl font-extrabold" id="goal-point-1"></span>
+                    </div>
+                    <div class="flex items-center gap-5 bg-white/10 p-5 rounded-2xl border border-white/5 backdrop-blur-md">
+                        <div class="w-12 h-12 bg-blue-300 rounded-xl flex items-center justify-center text-blue-900 font-black text-xl"><i data-lucide="laptop"></i></div>
+                        <span class="text-xl font-extrabold" id="goal-point-2"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-center reveal delay-100">
+                <div class="bg-white/10 p-12 rounded-[3rem] border border-white/20 text-center shadow-2xl">
+                    <i data-lucide="award" class="w-32 h-32 mb-6 text-yellow-400 mx-auto drop-shadow-lg"></i>
+                    <h3 class="text-3xl font-black uppercase">EXCELLENCE</h3>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- بەشێن قوتابخانێ (School Sections) -->
+    <section class="py-24 px-6 bg-slate-50">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-16 reveal">
+                <h2 id="gallery-title" class="text-4xl md:text-5xl font-black text-blue-900"></h2>
+                <div class="w-16 h-1.5 bg-blue-200 mx-auto mt-6 rounded-full"></div>
+            </div>
+            <div class="grid lg:grid-cols-12 gap-10 items-start">
+                <div class="lg:col-span-5 grid grid-cols-2 gap-4 reveal" id="gallery-grid"></div>
+                <div class="lg:col-span-7 relative reveal delay-200">
+                    <div class="relative bg-white p-3 rounded-[2.5rem] shadow-2xl h-[400px] md:h-[600px] overflow-hidden border border-blue-50">
+                        <img id="main-gallery-image" src="" class="w-full h-full object-cover rounded-[2rem]">
+                        <div class="absolute bottom-8 right-8 left-8">
+                            <div class="bg-white/95 px-6 py-4 rounded-2xl inline-block shadow-lg border border-blue-50">
+                                <h3 id="image-caption" class="text-2xl font-black text-blue-900"></h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ستێرێن ئالا (Stars of ALA) - التصميم الجديد المشرق -->
+    <section class="py-24 px-6 bg-gradient-to-b from-white to-blue-50/30 overflow-hidden relative border-t border-slate-100">
+        <div class="max-w-6xl mx-auto text-center">
+            <div class="mb-16 reveal">
+                <h2 id="stars-title" class="text-4xl md:text-5xl font-black text-blue-900 uppercase"></h2>
+                <div class="w-16 h-1.5 bg-blue-200 mx-auto mt-6 rounded-full"></div>
+            </div>
+            <div class="flex flex-wrap justify-center gap-12 md:gap-20 reveal delay-100">
+                <div class="text-center w-full sm:w-auto">
+                    <h3 id="star-name-1" class="text-2xl font-black text-blue-900 mb-4 min-h-[2rem]"></h3>
+                    <div class="star-box group"><img id="star-img-1" src=""></div>
+                </div>
+                <div class="text-center w-full sm:w-auto sm:-translate-y-8">
+                    <h3 id="star-name-2" class="text-2xl font-black text-blue-900 mb-4 min-h-[2rem]"></h3>
+                    <div class="star-box group"><img id="star-img-2" src=""></div>
+                </div>
+                <div class="text-center w-full sm:w-auto">
+                    <h3 id="star-name-3" class="text-2xl font-black text-blue-900 mb-4 min-h-[2rem]"></h3>
+                    <div class="star-box group"><img id="star-img-3" src=""></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- دەنگوباسێن قوتابخانێ (News Section) -->
+    <section id="news" class="py-24 px-6 bg-slate-50">
+        <div class="max-w-6xl mx-auto">
+            <div class="flex items-center justify-between mb-16 reveal">
+                <div>
+                    <h2 id="news-title" class="text-3xl md:text-5xl font-black text-slate-900"></h2>
+                    <div id="admin-indicator" class="hidden mt-2">
+                        <span class="bg-blue-100 text-blue-800 border border-blue-200 px-3 py-1 rounded-full text-[10px] font-black animate-pulse" id="admin-mode-label"></span>
+                    </div>
+                </div>
+                <button onclick="openLoginModal()" class="p-4 rounded-full bg-white text-blue-900 hover:bg-blue-900 hover:text-white transition-all shadow-md">
+                    <i data-lucide="lock" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div id="news-feed-container" class="grid md:grid-cols-2 gap-10"></div>
+            <div id="empty-news-state" class="hidden py-20 text-center bg-white rounded-[3rem] border-2 border-dashed border-slate-200">
+                <p class="text-slate-400 font-bold" id="empty-news-msg"></p>
+            </div>
+            <div class="flex justify-center mt-16 reveal">
+                <a id="fb-link-btn" href="https://www.facebook.com/profile.php?id=61583128689000" target="_blank" class="bg-blue-900 text-white px-10 py-5 rounded-full font-bold text-lg flex items-center gap-4 hover:shadow-2xl transition-all">
+                    <i data-lucide="facebook" class="w-6 h-6"></i> <span id="btn-fb-text"></span>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="pt-24 pb-8 bg-slate-900 text-white text-center border-t-8 border-blue-600">
+        <div class="max-w-4xl mx-auto px-6 space-y-12">
+            <h2 id="footer-name" class="text-3xl md:text-5xl font-black tracking-tight"></h2>
+            <span id="footer-location" class="text-xl font-bold opacity-80 block text-blue-200"></span>
+            
+            <div class="flex justify-center gap-6">
+                <a id="footer-fb" href="https://www.facebook.com/profile.php?id=61583128689000" target="_blank" class="p-4 bg-white/5 rounded-2xl hover:bg-blue-600 border border-white/10 transition-all"><i data-lucide="facebook" class="w-6 h-6"></i></a>
+                <a id="footer-ig" href="https://www.instagram.com/qutabxana.ala.school" target="_blank" class="p-4 bg-white/5 rounded-2xl hover:bg-pink-600 border border-white/10 transition-all"><i data-lucide="instagram" class="w-6 h-6"></i></a>
+            </div>
+
+            <div class="border-t border-white/10 mt-16 pt-8 text-sm opacity-40">
+                <p id="footer-rights" class="mb-2 font-bold uppercase tracking-widest"></p>
+                <p>Developed by Ebrahim Kawar</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Login Modal -->
+    <div id="login-modal" class="fixed inset-0 bg-slate-900/90 backdrop-blur-sm hidden flex items-center justify-center z-[100] p-4">
+        <div class="bg-white rounded-[2.5rem] p-10 w-full max-w-sm shadow-2xl relative text-center border-4 border-blue-50">
+            <button onclick="closeModals()" class="absolute top-6 left-6 text-slate-300 hover:text-red-500"><i data-lucide="x" class="w-6 h-6"></i></button>
+            <div class="w-16 h-16 bg-blue-50 rounded-3xl flex items-center justify-center mx-auto mb-6 text-blue-900 rotate-3 shadow-inner"><i data-lucide="shield-check" class="w-8 h-8"></i></div>
+            <h3 class="text-2xl font-black text-slate-800" id="login-title"></h3>
+            <p class="text-sm text-slate-500 mt-1 mb-8" id="login-subtitle"></p>
+            <input type="password" id="access-code" class="w-full bg-slate-50 p-5 rounded-2xl border-2 border-slate-100 text-center text-2xl font-black tracking-[0.5em] mb-6 focus:border-blue-500 outline-none transition-all" placeholder="••••">
+            <button onclick="checkLogin()" class="w-full bg-blue-900 text-white font-black py-4 rounded-2xl hover:bg-blue-800 shadow-xl" id="login-btn"></button>
+        </div>
+    </div>
+
+    <!-- Admin Panel Modal -->
+    <div id="post-modal" class="fixed inset-0 bg-slate-900/90 backdrop-blur-sm hidden flex items-center justify-center z-[100] p-4">
+        <div class="bg-white rounded-[3rem] p-8 md:p-12 w-full max-w-2xl shadow-2xl relative border-4 border-blue-50 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-8">
+                <h2 class="text-3xl font-black text-blue-900" id="modal-title"></h2>
+                <button onclick="closeModals()" class="bg-slate-50 p-3 rounded-full hover:bg-red-50"><i data-lucide="x"></i></button>
+            </div>
+            <form id="post-form" class="space-y-6 text-right">
+                <div>
+                    <label class="block text-sm font-black text-slate-600 mb-2" id="action-label"></label>
+                    <select id="action-type" class="w-full bg-slate-50 p-4 rounded-2xl border-2 border-slate-100 focus:border-blue-500 outline-none text-lg font-bold text-blue-900 appearance-none" onchange="toggleFormFields()">
+                    </select>
+                </div>
+                
+                <!-- حقل اسم الطالب الجديد -->
+                <div id="star-name-group" class="hidden">
+                    <label class="block text-sm font-black text-slate-600 mb-2" id="star-name-label"></label>
+                    <input type="text" id="star-name-input" class="w-full bg-slate-50 p-4 rounded-2xl border-2 border-slate-100 focus:border-blue-500 outline-none text-lg font-bold text-center">
+                </div>
+
+                <div id="image-input-group">
+                    <label class="block text-sm font-black text-slate-600 mb-2" id="img-label"></label>
+                    <label class="flex flex-col items-center justify-center w-full h-40 border-3 border-slate-100 border-dashed rounded-[2rem] cursor-pointer bg-slate-50 hover:bg-blue-50 transition-all">
+                        <i data-lucide="image-plus" class="w-10 h-10 text-slate-300 mb-3"></i>
+                        <p class="text-sm text-slate-400 font-bold" id="img-placeholder"></p>
+                        <input type="file" id="post-image" accept="image/*" class="hidden" onchange="previewImage(this)">
+                    </label>
+                    <img id="image-preview" class="hidden mt-4 w-full h-56 object-cover rounded-[2rem] border-4 border-white shadow-lg">
+                </div>
+
+                <div id="text-input-area">
+                    <label class="block text-sm font-black text-slate-600 mb-2" id="text-label"></label>
+                    <textarea id="post-text" rows="4" class="w-full bg-slate-50 p-6 rounded-[2rem] border-2 border-slate-100 focus:border-blue-500 outline-none text-lg font-medium"></textarea>
+                </div>
+
+                <div id="message-edit-group" class="hidden space-y-4">
+                    <input type="text" id="edit-goal-title" placeholder="ناڤونیشان" class="w-full bg-slate-50 p-4 rounded-2xl border-2 border-slate-100 outline-none">
+                    <textarea id="edit-goal-text" placeholder="دەق" rows="3" class="w-full bg-slate-50 p-4 rounded-2xl border-2 border-slate-100 outline-none"></textarea>
+                    <input type="text" id="edit-goal-p1" placeholder="خال 1" class="w-full bg-slate-50 p-4 rounded-2xl border-2 border-slate-100 outline-none">
+                    <input type="text" id="edit-goal-p2" placeholder="خال 2" class="w-full bg-slate-50 p-4 rounded-2xl border-2 border-slate-100 outline-none">
+                </div>
+
+                <div id="ticker-toggle-area" class="flex items-center gap-4 bg-blue-50 p-5 rounded-3xl border border-blue-100">
+                    <input type="checkbox" id="show-in-ticker" class="peer h-6 w-6 cursor-pointer rounded-lg border-2 border-blue-300">
+                    <label for="show-in-ticker" class="font-bold text-blue-900 cursor-pointer text-base" id="ticker-toggle-label"></label>
+                </div>
+
+                <button type="submit" id="submit-btn" class="w-full bg-blue-900 text-white font-black py-5 rounded-2xl hover:bg-blue-800 shadow-xl active:scale-95 text-lg transition-all"></button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // 🚨 کلیلێ نهێنی یێ مالپەری (Password)
+        const SITE_PASSWORD = "ala"; 
+
+        let isAuthorized = false;
+        let activeLang = 'badini';
+        window.cloudData = {};
+        window.cloudNews = [];
+
+        window.DEFAULT_IMAGES = {
+            logo: "https://ui-avatars.com/api/?name=ALA&background=1e3a8a&color=fff&size=150",
+            gallery_0: "https://images.unsplash.com/photo-1577896851231-70ef18881754?q=80&w=1000",
+            gallery_1: "https://images.unsplash.com/photo-1546410531-bb4caa6b424d?q=80&w=1000",
+            gallery_2: "https://images.unsplash.com/photo-1523050335102-c67440403125?q=80&w=1000",
+            gallery_3: "https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=1000",
+            gallery_4: "https://images.unsplash.com/photo-1532094349884-543bc11b234d?q=80&w=1000",
+            gallery_5: "https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=1000",
+            star_1: "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=1000",
+            star_2: "https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?q=80&w=1000",
+            star_3: "https://images.unsplash.com/photo-1510563800743-aed236490d08?q=80&w=1000"
+        };
+
+        const translations = {
+            badini: {
+                schoolName: "قوتابخانا ئالا", schoolType: "یا بنەرەت یا تێکەڵ", subtitle: "قوتابخانا ئالا یا بنەرەت یا تێکەڵ یا نموونەیی – دهۆك",
+                aboutTitle: "دەربارەی قوتابخانێ", aboutText: "قوتابخانا ئالا، قوتابخانەکا بنەرەت یا نموونەیی یە ل باژێرێ دهۆکێ. ئەم کار دکەين بۆ ئاڤاکرنا پاشەرۆژەکا گەش بۆ زارۆکێن هەوە.",
+                goalTitle: "پەیاما مە", goalText: "پەروەردەکرنا نڤشەکێ ب هێز کو شیانێن داهێنانێ و سەرکردایەتیێ هەبن.",
+                goalPoint1: "پێشێخستنا شیانێن هزري", goalPoint2: "پەروەردەکا سەردەمیانە",
+                galleryTitle: "بەشێن قوتابخانێ", starsTitle: "ستێرێن ئالا", newsTitle: "دەنگوباسێن قوتابخانێ", tickerLabel: "نویترین هەواڵ:",
+                emptyNews: "نوکە چ دەنگوباس نینن", facebookBtn: "پەیجێ مە ل فەيسبووکي", discover: "پتر ببینە", 
+                location: "دهۆک - تاخێ خەبات - نێزیک هوتێل سۆلاڤ",
+                footerRights: "هەمی ماف پاراستینە بۆ قوتابخانا ئالا", loginTitle: "دەڤەرا مامۆستایان", loginSubtitle: "کۆدێ تێچوونێ بنڤیسە", loginBtn: "تێچوون",
+                modalTitle: "لوحة التحكم", actionLabel: "جۆرێ کارێ تو دکەی", imgLabel: "وێنە", imgPlaceholder: "كليك بكە بۆ هەلبژارتنا وێنەی",
+                textLabel: "ناڤەڕۆكا بابەتی", publishBtn: "بەلاڤكرن", tickerToggle: "د شريتێ ئەخباراندا ديار بيت؟", loadingText: "يێ بەلاڤ دكەت...",
+                pinConfirm: "بۆ ژێبرنێ، کلیلێ نهێنی بنڤیسە:", adminName: "كارگێريا قوتابخانێ", adminModeLabel: "ADMIN ACTIVE", 
+                likeBtn: "پەسەندكرن", dir: 'rtl', langLabel: 'بادينى',
+                studentNameLabel: "ناڤێ قوتابی (ئارەزوومەندانە)",
+                galleryItems: ['قوتابي', 'کتێبخانە', 'چالاکی', 'گۆرەپان', 'تاقیگە', 'كارگێری'],
+                dropdownOptions: [
+                    {val: 'news', text: 'بەلاڤكرنا دەنگوباسەكێ'}, {val: 'logo', text: 'گۆڕینا لۆگۆیێ قوتابخانێ'}, {val: 'message', text: 'دەستكاریكرنا (پەیاما مە)'},
+                    {val: 'gallery_0', text: 'گۆڕینا وێنێ: قوتابي'}, {val: 'gallery_1', text: 'گۆڕینا وێنێ: كتێبخانە'}, {val: 'gallery_2', text: 'گۆڕینا وێنێ: چالاكى'},
+                    {val: 'gallery_3', text: 'گۆڕینا وێنێ: گۆرەپان'}, {val: 'gallery_4', text: 'گۆڕینا وێنێ: تاقيگە'}, {val: 'gallery_5', text: 'گۆڕینا وێنێ: كارگێری'},
+                    {val: 'star_1', text: 'گۆڕینا وێنێ: ستێرا 1'}, {val: 'star_2', text: 'گۆڕینا وێنێ: ستێرا 2'}, {val: 'star_3', text: 'گۆڕینا وێنێ: ستێرا 3'}
+                ]
+            },
+            sorani: {
+                schoolName: "قوتابخانەی ئالا", schoolType: "بنەڕەتی تێکەڵ", subtitle: "قوتابخانەی ئالای بنەڕەتی تێکەڵی نموونەیی – دهۆك",
+                aboutTitle: "دەربارەی قوتابخانە", aboutText: "قوتابخانەی ئالا قوتابخانەیەکی بنەڕەتی نموونەییە لە شاری دهۆک. ئامانجمان پێگەیاندنی نەوەیەک بۆ داهاتوو.",
+                goalTitle: "پەیامی ئێمە", goalText: "پێگەیاندنی نەوەیەکی هۆشیار و زانستخواز، کە بتوانێت خزمەتی نیشتمان بکات.",
+                goalPoint1: "گەشەپێدانی بەهرەکان", goalPoint2: "ژینگەیەکی فێربوونی ئارام",
+                galleryTitle: "بەشەکانی قوتابخانە", starsTitle: "ئەستێرەکانی ئالا", newsTitle: "هەواڵەکانی قوتابخانە", tickerLabel: "هەواڵی بەپەلە:",
+                emptyNews: "ئێستا هیچ هەواڵێک نيیە", facebookBtn: "پەیجی فەرمی فەيسبووک", discover: "زياتر ببینە", 
+                location: "دهۆک - گەڕەکی خەبات - نزیک هۆتێل سۆلاڤ",
+                footerRights: "مافی پارێزراوە بۆ قوتابخانەی ئالا", loginTitle: "بەشی مامۆستايان", loginSubtitle: "تکايە کۆد بنووسە", loginBtn: "چوونەژوورەوە",
+                modalTitle: "بەشی کارگێڕي", actionLabel: "جۆری کردار", imgLabel: "وێنە", imgPlaceholder: "وێنە هەڵبژێرە",
+                textLabel: "ناوەڕۆک", publishBtn: "بڵاوکردنەوە", tickerToggle: "لە شريتي هەواڵ نیشان بدرێت؟", loadingText: "يێ بەلاڤ دكەت...",
+                pinConfirm: "بۆ سڕینەوە، کۆد بنووسە:", adminName: "کارگێڕي", adminModeLabel: "ADMIN ACTIVE", 
+                likeBtn: "لایک", dir: 'rtl', langLabel: 'سۆرانی',
+                studentNameLabel: "ناوی قوتابی (ئارەزوومەندانە)",
+                galleryItems: ['قوتابیان', 'کتێبخانە', 'چالاکی', 'قوتابخانە', 'تاقیگە', 'کارگێڕی'],
+                dropdownOptions: [
+                    {val: 'news', text: 'بڵاوکردنەوەی هەواڵ'}, {val: 'logo', text: 'گۆڕینی لۆگۆ'}, {val: 'message', text: 'دەستکاری پەیامی ئێمە'},
+                    {val: 'gallery_0', text: 'گۆڕینی وێنەی: قوتابیان'}, {val: 'gallery_1', text: 'گۆڕینی وێنەی: کتێبخانە'}, {val: 'gallery_2', text: 'گۆڕینی وێنەی: چالاکی'},
+                    {val: 'gallery_3', text: 'گۆڕینی وێنەی: قوتابخانە'}, {val: 'gallery_4', text: 'گۆڕینی وێنەی: تاقیگە'}, {val: 'gallery_5', text: 'گۆڕینی وێنەی: کارگێڕی'},
+                    {val: 'star_1', text: 'گۆڕینی وێنەی: ئەستێرە 1'}, {val: 'star_2', text: 'گۆڕینی وێنەی: ئەستێرە 2'}, {val: 'star_3', text: 'گۆڕینی وێنەی: ئەستێرە 3'}
+                ]
+            },
+            arabic: {
+                schoolName: "مدرسة ئالا (ALA)", schoolType: "الأساسية المختلطة", subtitle: "مدرسة ئالا الأساسية المختلطة النموذجية – دهوك",
+                aboutTitle: "عن المدرسة", aboutText: "مدرسة ئالا هي مدرسة أساسية نموذجية تقع في مدينة دهوك. تأسست لتوفير تعليم متميز.",
+                goalTitle: "رسالتنا", goalText: "إعداد أجيال مبدعة تمتلك مهارات التفكير النقدي والقيادة في بيئة تعليمية محفزة.",
+                goalPoint1: "تنمية الإبداع والابتكار", goalPoint2: "بيئة تعليمية رقمية",
+                galleryTitle: "أقسام المدرسة", starsTitle: "نجوم ئالا", newsTitle: "أخبار المدرسة", tickerLabel: "آخر الأخبار:",
+                emptyNews: "لا توجد أخبار حالياً", facebookBtn: "تابعنا على فيسبوك", discover: "اكتشف المزيد", 
+                location: "دهوك - حي خبات - قرب فندق سولاف",
+                footerRights: "جميع الحقوق محفوظة لمدرسة ئالا", loginTitle: "منطقة المعلمين", loginSubtitle: "يرجى إدخال رمز الدخول", loginBtn: "دخول",
+                modalTitle: "لوحة التحكم", actionLabel: "نوع العملية", imgLabel: "الصورة", imgPlaceholder: "اضغط لاختيار صورة",
+                textLabel: "نص الخبر", publishBtn: "نشر التحديث", tickerToggle: "عرض في شريط الأخبار؟", loadingText: "جاري النشر...",
+                pinConfirm: "للحذف، أدخل الرمز السري:", adminName: "الإدارة", adminModeLabel: "وضع الإدارة نشط", 
+                likeBtn: "إعجاب", dir: 'rtl', langLabel: 'عربي',
+                studentNameLabel: "اسم الطالب (اختياري)",
+                galleryItems: ['الطلاب', 'المكتبة', 'النشاطات', 'الساحة', 'المختبرات', 'الإدارة'],
+                dropdownOptions: [
+                    {val: 'news', text: 'نشر خبر جديد'}, {val: 'logo', text: 'تغيير الشعار'}, {val: 'message', text: 'تعديل (رسالتنا)'},
+                    {val: 'gallery_0', text: 'تغيير صورة: الطلاب'}, {val: 'gallery_1', text: 'تغيير صورة: المكتبة'}, {val: 'gallery_2', text: 'تغيير صورة: النشاطات'},
+                    {val: 'gallery_3', text: 'تغيير صورة: الساحة'}, {val: 'gallery_4', text: 'تغيير صورة: المختبرات'}, {val: 'gallery_5', text: 'تغيير صورة: الإدارة'},
+                    {val: 'star_1', text: 'تغيير صورة: نجم 1'}, {val: 'star_2', text: 'تغيير صورة: نجم 2'}, {val: 'star_3', text: 'تغيير صورة: نجم 3'}
+                ]
+            },
+            english: {
+                schoolName: "ALA SCHOOL", schoolType: "Model Basic School", subtitle: "ALA Model Basic Mixed School – Duhok",
+                aboutTitle: "About Us", aboutText: "ALA School is a premier model basic school located in Duhok. Focused on excellence.",
+                goalTitle: "Our Message", goalText: "Fostering a creative generation equipped for future challenges.",
+                goalPoint1: "Cognitive Skills", goalPoint2: "Modern Environment",
+                galleryTitle: "School Sections", starsTitle: "Stars of Ala", newsTitle: "School News", tickerLabel: "Latest News:",
+                emptyNews: "No news available", facebookBtn: "Follow us on Facebook", discover: "Discover More", 
+                location: "Duhok - Khabat District - Near Sulav Hotel",
+                footerRights: "All rights reserved to ALA SCHOOL", loginTitle: "Teachers Area", loginSubtitle: "Enter access code", loginBtn: "Login",
+                modalTitle: "Admin Panel", actionLabel: "Action Type", imgLabel: "Image", imgPlaceholder: "Select image",
+                textLabel: "Post Content", publishBtn: "Publish Now", tickerToggle: "Show in ticker?", loadingText: "Publishing...",
+                pinConfirm: "To delete, enter code:", adminName: "Admin", adminModeLabel: "ADMIN ACTIVE", 
+                likeBtn: "Like", dir: 'ltr', langLabel: 'English',
+                studentNameLabel: "Student Name (Optional)",
+                galleryItems: ['Students', 'Library', 'Activities', 'Campus', 'Labs', 'Administration'],
+                dropdownOptions: [
+                    {val: 'news', text: 'Post News'}, {val: 'logo', text: 'Change Logo'}, {val: 'message', text: 'Edit Our Message'},
+                    {val: 'gallery_0', text: 'Change Image: Students'}, {val: 'gallery_1', text: 'Change Image: Library'}, {val: 'gallery_2', text: 'Change Image: Activities'},
+                    {val: 'gallery_3', text: 'Change Image: Campus'}, {val: 'gallery_4', text: 'Change Image: Labs'}, {val: 'gallery_5', text: 'Change Image: Administration'},
+                    {val: 'star_1', text: 'Change Image: Star 1'}, {val: 'star_2', text: 'Change Image: Star 2'}, {val: 'star_3', text: 'Change Image: Star 3'}
+                ]
+            }
+        };
+
+        window.applyCloudContent = function() {
+            const data = window.cloudData || {};
+            ['logo-nav', 'logo-hero'].forEach(id => {
+                const el = document.getElementById(id);
+                if(el) el.src = (data.logo && data.logo.url) || window.DEFAULT_IMAGES.logo;
+            });
+            renderGallery(data);
+            ['star_1', 'star_2', 'star_3'].forEach((id, i) => {
+                const el = document.getElementById(`star-img-${i+1}`);
+                if(el) el.src = (data[id] && data[id].url) || window.DEFAULT_IMAGES[id];
+                
+                const nameEl = document.getElementById(`star-name-${i+1}`);
+                if(nameEl) nameEl.innerText = (data[id] && data[id].name) || "";
+            });
+            const msg = data.message_section || {};
+            const t = translations[activeLang];
+            document.getElementById('goal-title').innerText = msg.title || t.goalTitle;
+            document.getElementById('goal-text').innerText = msg.text || t.goalText;
+            document.getElementById('goal-point-1').innerText = msg.p1 || t.goalPoint1;
+            document.getElementById('goal-point-2').innerText = msg.p2 || t.goalPoint2;
+        };
+
+        window.updateUI = function() {
+            const t = translations[activeLang];
+            document.body.dir = t.dir;
+            const textIds = {
+                'nav-school-name': t.schoolName, 'nav-school-type': t.schoolType, 'hero-title': t.schoolName, 'hero-type': t.schoolType,
+                'hero-subtitle': t.subtitle, 'btn-discover': t.discover, 'about-title': t.aboutTitle, 'about-text': t.aboutText,
+                'gallery-title': t.galleryTitle, 'stars-title': t.starsTitle, 'news-title': t.newsTitle,
+                'ticker-label': t.tickerLabel, 'empty-news-msg': t.emptyNews, 'btn-fb-text': t.facebookBtn,
+                'footer-name': t.schoolName, 'footer-location': t.location, 'login-title': t.loginTitle,
+                'login-subtitle': t.loginSubtitle, 'login-btn': t.loginBtn, 'modal-title': t.modalTitle, 'action-label': t.actionLabel,
+                'img-label': t.imgLabel, 'img-placeholder': t.imgPlaceholder, 'text-label': t.textLabel,
+                'submit-btn': t.publishBtn, 'ticker-toggle-label': t.tickerToggle, 'admin-mode-label': t.adminModeLabel,
+                'star-name-label': t.studentNameLabel
+            };
+            for (const [id, val] of Object.entries(textIds)) {
+                const el = document.getElementById(id);
+                if(el) el.innerText = val;
+            }
+            
+            const starInput = document.getElementById('star-name-input');
+            if(starInput) {
+                if(activeLang === 'arabic') starInput.placeholder = "اكتب الاسم هنا...";
+                else if(activeLang === 'english') starInput.placeholder = "Enter name here...";
+                else starInput.placeholder = "ناڤ لێرە بنڤیسە...";
+            }
+
+            const selectEl = document.getElementById('action-type');
+            if(selectEl) {
+                const cur = selectEl.value;
+                selectEl.innerHTML = t.dropdownOptions.map(o => `<option value="${o.val}">${o.text}</option>`).join('');
+                selectEl.value = cur || 'news';
+            }
+            document.getElementById('footer-rights').innerText = t.footerRights + " © " + new Date().getFullYear();
+            
+            const sw = document.getElementById('lang-switcher');
+            if(sw) {
+                sw.innerHTML = '';
+                Object.keys(translations).forEach(l => {
+                    const btn = document.createElement('button');
+                    const isA = activeLang === l;
+                    btn.className = `px-4 py-1.5 rounded-full text-[11px] font-black transition-all ${isA ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:text-blue-600'}`;
+                    btn.innerText = translations[l].langLabel;
+                    btn.onclick = () => { activeLang = l; window.updateUI(); };
+                    sw.appendChild(btn);
+                });
+            }
+            window.applyCloudContent();
+            window.loadPosts();
+            lucide.createIcons();
+            document.querySelectorAll('.reveal').forEach(el => el.classList.add('active'));
+        };
+
+        function renderGallery(data) {
+            const t = translations[activeLang];
+            const g = document.getElementById('gallery-grid');
+            if(!g) return;
+            const icons = ['users', 'book-open', 'star', 'building', 'flask-conical', 'briefcase'];
+            g.innerHTML = t.galleryItems.map((item, i) => {
+                return `<button onclick="changeDepartmentImage(${i}, this)" class="group bg-white rounded-[1.5rem] p-5 border-2 border-transparent text-center flex flex-col items-center gap-3 hover:border-blue-100 transition-all shadow-sm overflow-hidden"><div class="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center group-hover:bg-blue-600 transition-all duration-300"><i data-lucide="${icons[i]}" class="w-7 h-7 text-blue-900 group-hover:text-white"></i></div><h3 class="text-base font-black text-slate-700 group-hover:text-blue-900">${item}</h3></button>`;
+            }).join('');
+            const first = g.querySelector('button');
+            if(first && !document.querySelector('.dept-card-active')) changeDepartmentImage(0, first);
+            lucide.createIcons();
+        }
+
+        window.changeDepartmentImage = (index, element) => {
+            const secKeys = ['gallery_0', 'gallery_1', 'gallery_2', 'gallery_3', 'gallery_4', 'gallery_5'];
+            const key = secKeys[index];
+            const data = window.cloudData || {};
+            const src = (data[key] && data[key].url) || window.DEFAULT_IMAGES[key];
+            const title = translations[activeLang].galleryItems[index];
+            const img = document.getElementById('main-gallery-image');
+            const cap = document.getElementById('image-caption');
+            if(!img || !cap) return;
+            document.querySelectorAll('#gallery-grid button').forEach(btn => btn.classList.remove('dept-card-active'));
+            if(element) element.classList.add('dept-card-active');
+            img.style.opacity = '0';
+            setTimeout(() => { img.src = src; cap.innerText = title; img.style.opacity = '1'; }, 300);
+        };
+
+        window.handleLike = async (id, currentLikes) => {
+            if (localStorage.getItem('liked_' + id)) return;
+            try {
+                const newLikes = (currentLikes || 0) + 1;
+                await window.updateLikeInFirebase(id, newLikes);
+                localStorage.setItem('liked_' + id, 'true');
+            } catch (err) { console.error(err); }
+        };
+
+        window.loadPosts = () => {
+            const posts = window.cloudNews || [];
+            const container = document.getElementById('news-feed-container');
+            const ticker = document.getElementById('news-ticker-content');
+            const empty = document.getElementById('empty-news-state');
+            if(!container || !ticker || !empty) return;
+            const postsWithTicker = posts.filter(p => p.showInTicker && p.text);
+            const imgs = window.cloudData || {};
+            const logoSrc = (imgs.logo && imgs.logo.url) || window.DEFAULT_IMAGES.logo;
+            const logoS = `<span class="mx-8"><img src="${logoSrc}" class="w-6 h-6 rounded-full inline align-middle object-cover"></span>`;
+            ticker.innerHTML = postsWithTicker.length === 0 ? "WELCOME TO ALA SCHOOL" : postsWithTicker.map(p => `<span>${p.text}</span>`).join(logoS);
+            
+            if (posts.length === 0) { empty.classList.remove('hidden'); container.innerHTML = ''; }
+            else {
+                empty.classList.add('hidden');
+                container.innerHTML = posts.map(p => {
+                    const isLiked = localStorage.getItem('liked_' + p.id);
+                    return `
+                    <div class="bg-white rounded-[2rem] shadow-lg border border-blue-50 overflow-hidden reveal active">
+                        <div class="p-6 flex items-center gap-4 border-b border-blue-50 bg-blue-50/20">
+                            <div class="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-inner"><i data-lucide="school"></i></div>
+                            <div><h3 class="font-black text-blue-900 text-base font-bold">${translations[activeLang].adminName}</h3><p class="text-[10px] text-slate-400 font-bold">${p.date}</p></div>
+                            ${isAuthorized ? `<button onclick="handleDelete('${p.id}')" class="mr-auto p-2 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all shadow-sm"><i data-lucide="trash-2" class="w-5 h-5"></i></button>` : ''}
+                        </div>
+                        ${p.text ? `<div class="px-8 py-6 text-lg text-slate-700 leading-relaxed font-medium dir="auto">${p.text}</div>` : ''}
+                        ${p.image ? `<div class="px-4 pb-4"><img src="${p.image}" class="w-full h-72 md:h-96 object-cover rounded-[2rem] shadow-md border-2 border-white"></div>` : ''}
+                        <div class="px-8 py-5 bg-slate-50/50 flex gap-4">
+                            <button onclick="handleLike('${p.id}', ${p.likes || 0})" class="flex items-center gap-2 ${isLiked ? 'text-blue-600' : 'text-slate-400'} font-bold text-sm hover:text-blue-600 transition-colors">
+                                <i data-lucide="thumbs-up" class="w-5 h-5 ${isLiked ? 'fill-current' : ''}"></i> 
+                                ${translations[activeLang].likeBtn} (${p.likes || 0})
+                            </button>
+                        </div>
+                    </div>`;
+                }).join('');
+            }
+            lucide.createIcons();
+        };
+
+        window.handleDelete = async (id) => {
+            const pin = prompt(translations[activeLang].pinConfirm);
+            if(pin === SITE_PASSWORD) { 
+                try { await window.deleteFromFirebase(id); alert("ب سەرکەڤتیانە هاتە ژێبرن"); } catch(e) { alert("Error"); } 
+            } else if(pin !== null) { alert("کۆد خەلەتە / الرمز خطأ"); }
+        };
+
+        window.checkLogin = () => {
+            const enteredCode = document.getElementById('access-code').value;
+            if (enteredCode === SITE_PASSWORD) {
+                isAuthorized = true;
+                document.getElementById('admin-indicator').classList.remove('hidden');
+                window.closeModals();
+                window.loadPosts();
+            } else { alert("کۆد خەلەتە / الرمز خطأ"); }
+        };
+
+        window.openLoginModal = () => isAuthorized ? document.getElementById('post-modal').classList.remove('hidden') : document.getElementById('login-modal').classList.remove('hidden');
+        window.closeModals = () => { document.getElementById('login-modal').classList.add('hidden'); document.getElementById('post-modal').classList.add('hidden'); };
+        
+        window.previewImage = (input) => { 
+            const prev = document.getElementById('image-preview'); 
+            if (input.files[0]) { const r = new FileReader(); r.onload = e => { prev.src = e.target.result; prev.classList.remove('hidden'); }; r.readAsDataURL(input.files[0]); } 
+        };
+
+        window.toggleFormFields = () => {
+            const t = document.getElementById('action-type').value;
+            const imgGrp = document.getElementById('image-input-group');
+            const textGrp = document.getElementById('text-input-area');
+            const tickGrp = document.getElementById('ticker-toggle-area');
+            const msgGrp = document.getElementById('message-edit-group');
+            const starGrp = document.getElementById('star-name-group');
+            
+            imgGrp.classList.add('hidden'); textGrp.classList.add('hidden'); tickGrp.classList.add('hidden'); msgGrp.classList.add('hidden'); starGrp.classList.add('hidden');
+            
+            if (t === 'news') { 
+                imgGrp.classList.remove('hidden'); textGrp.classList.remove('hidden'); tickGrp.classList.remove('hidden'); 
+            }
+            else if (t === 'message') { 
+                msgGrp.classList.remove('hidden'); 
+                document.getElementById('edit-goal-title').value = document.getElementById('goal-title').innerText;
+                document.getElementById('edit-goal-text').value = document.getElementById('goal-text').innerText;
+                document.getElementById('edit-goal-p1').value = document.getElementById('goal-point-1').innerText;
+                document.getElementById('edit-goal-p2').value = document.getElementById('goal-point-2').innerText;
+            }
+            else if (t.startsWith('star_')) {
+                imgGrp.classList.remove('hidden');
+                starGrp.classList.remove('hidden');
+                const existingName = document.getElementById(`star-name-${t.split('_')[1]}`).innerText;
+                document.getElementById('star-name-input').value = existingName || "";
+            }
+            else { 
+                imgGrp.classList.remove('hidden'); 
+            }
+        };
+
+        const compressImage = (file) => {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 800; const scaleSize = MAX_WIDTH / img.width;
+                        canvas.width = MAX_WIDTH; canvas.height = img.height * scaleSize;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        resolve(canvas.toDataURL('image/jpeg', 0.6));
+                    };
+                };
+            });
+        };
+
+        document.getElementById('post-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('submit-btn');
+            const t = document.getElementById('action-type').value;
+            const oldT = btn.innerText;
+            btn.innerText = translations[activeLang].loadingText;
+            btn.classList.add('btn-loading');
+            try {
+                if (t === 'message') {
+                    await window.saveToFirebase('site_assets', {
+                        title: document.getElementById('edit-goal-title').value,
+                        text: document.getElementById('edit-goal-text').value,
+                        p1: document.getElementById('edit-goal-p1').value,
+                        p2: document.getElementById('edit-goal-p2').value
+                    }, 'message_section');
+                } else if (t === 'news') {
+                    const file = document.getElementById('post-image').files[0];
+                    let b64 = file ? await compressImage(file) : null;
+                    await window.saveToFirebase('news', {
+                        text: document.getElementById('post-text').value,
+                        image: b64, showInTicker: document.getElementById('show-in-ticker').checked,
+                        likes: 0,
+                        date: new Date().toLocaleDateString(), timestamp: Date.now()
+                    });
+                } else if (t.startsWith('star_')) {
+                    const file = document.getElementById('post-image').files[0];
+                    const starName = document.getElementById('star-name-input').value;
+                    let imgUrl = (window.cloudData && window.cloudData[t] && window.cloudData[t].url) || "";
+                    
+                    if(file) {
+                        imgUrl = await compressImage(file);
+                    }
+                    if(!imgUrl && !file) throw new Error("Select image");
+                    
+                    await window.saveToFirebase('site_assets', { url: imgUrl, name: starName }, t);
+                } else {
+                    const file = document.getElementById('post-image').files[0];
+                    if(!file) throw new Error("Select image");
+                    let b64 = await compressImage(file);
+                    await window.saveToFirebase('site_assets', { url: b64 }, t);
+                }
+                alert("ب سەرکەڤتیانە هاتە ئەنجامدان");
+                window.closeModals(); this.reset();
+            } catch (err) { alert("Error"); } finally { btn.innerText = oldT; btn.classList.remove('btn-loading'); }
+        });
+
+        window.scrollToId = (id) => { const el = document.getElementById(id); if(el) el.scrollIntoView({ behavior: 'smooth' }); };
+        
+        window.onload = () => {
+            window.updateUI();
+        };
+    </script>
+</body>
+</html>
+
+
+
